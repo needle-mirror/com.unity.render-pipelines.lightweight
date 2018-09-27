@@ -6,6 +6,7 @@ using UnityEditor.Graphing;
 using UnityEditor.ShaderGraph;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Experimental.Rendering.LightweightPipeline;
+using UnityEngine.Rendering;
 
 namespace UnityEditor.Experimental.Rendering.LightweightPipeline
 {
@@ -67,6 +68,8 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
             Name = "",
             PixelShaderSlots = new List<int>()
             {
+                PBRMasterNode.AlbedoSlotId,
+                PBRMasterNode.EmissionSlotId,
                 PBRMasterNode.AlphaSlotId,
                 PBRMasterNode.AlphaThresholdSlotId
             },
@@ -126,6 +129,7 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
                         mode,
                         materialOptions));
             }
+            subShader.Append("CustomEditor \"UnityEditor.ShaderGraph.PBRMasterGUI\"");
 
             return subShader.ToString();
         }
