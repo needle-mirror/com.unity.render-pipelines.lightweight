@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine.Experimental.GlobalIllumination;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.LWRP;
 
-namespace UnityEngine.Experimental.Rendering.LightweightPipeline
+namespace UnityEngine.Experimental.Rendering.LWRP
 {
     /// <summary>
     /// Configure the shader constants needed by the render pipeline
@@ -13,7 +13,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
     /// For example, you can execute this pass before you render opaque
     /// objects, to make sure that lights are configured correctly.
     /// </summary>
-    public class SetupLightweightConstanstPass : ScriptableRenderPass
+    internal class SetupLightweightConstanstPass : ScriptableRenderPass
     {
         static class LightConstantBuffer
         {

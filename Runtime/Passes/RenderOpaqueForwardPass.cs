@@ -1,7 +1,8 @@
 using System;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.LWRP;
 
-namespace UnityEngine.Experimental.Rendering.LightweightPipeline
+namespace UnityEngine.Experimental.Rendering.LWRP
 {
     /// <summary>
     /// Render all opaque forward objects into the given color and depth target 
@@ -10,7 +11,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
     /// with the pass names LightweightForward or SRPDefaultUnlit. The pass only
     /// renders objects in the rendering queue range of Opaque objects.
     /// </summary>
-    public class RenderOpaqueForwardPass : ScriptableRenderPass
+    internal class RenderOpaqueForwardPass : ScriptableRenderPass
     {
         const string k_RenderOpaquesTag = "Render Opaques";
         FilteringSettings m_OpaqueFilterSettings;

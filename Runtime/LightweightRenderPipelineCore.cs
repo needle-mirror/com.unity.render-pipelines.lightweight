@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections;
-using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
 
-namespace UnityEngine.Experimental.Rendering.LightweightPipeline
+namespace UnityEngine.Rendering.LWRP
 {
     public enum MixedLightingSetup
     {
@@ -39,7 +38,6 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
         public int msaaSamples;
         public bool isSceneViewCamera;
         public bool isDefaultViewport;
-        public bool isOffscreenRender;
         public bool isHdrEnabled;
         public bool requiresDepthTexture;
         public bool requiresOpaqueTexture;

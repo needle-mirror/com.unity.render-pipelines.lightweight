@@ -1,7 +1,7 @@
-namespace UnityEngine.Experimental.Rendering.LightweightPipeline
+namespace UnityEngine.Experimental.Rendering.LWRP
 {
     public interface IAfterRender
     {
-        ScriptableRenderPass GetPassToEnqueue();
+        ScriptableRenderPass GetPassToEnqueue(RenderTextureDescriptor baseDescriptor, RenderTargetHandle colorHandle, RenderTargetHandle depthHandle);
     }
 }

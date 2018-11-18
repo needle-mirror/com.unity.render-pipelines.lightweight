@@ -76,7 +76,7 @@ Shader "Lightweight Render Pipeline/Particles/Lit"
 
             VaryingsParticle ParticlesLitVertex(AttributesParticle input)
             {
-                VaryingsParticle output;
+                VaryingsParticle output = (VaryingsParticle)0;
                 VertexPositionInputs vertexInput = GetVertexPositionInputs(input.vertex.xyz);
                 VertexNormalInputs normalInput = GetVertexNormalInputs(input.normal
 #if defined(_NORMALMAP)
@@ -126,5 +126,5 @@ Shader "Lightweight Render Pipeline/Particles/Lit"
     }
 
     Fallback "Lightweight Render Pipeline/Particles/SimpleLit"
-    CustomEditor "UnityEditor.Experimental.Rendering.LightweightPipeline.ParticlesLitShaderGUI"
+    CustomEditor "UnityEditor.Rendering.LWRP.ParticlesLitShaderGUI"
 }

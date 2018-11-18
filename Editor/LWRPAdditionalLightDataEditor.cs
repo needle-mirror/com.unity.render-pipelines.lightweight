@@ -1,8 +1,6 @@
-using System;
-using UnityEngine;
-using UnityEngine.Experimental.Rendering.LightweightPipeline;
+using UnityEngine.Rendering.LWRP;
 
-namespace UnityEditor.Experimental.Rendering.LightweightPipeline
+namespace UnityEditor.Rendering.LWRP
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(LWRPAdditionalLightData))]
@@ -10,6 +8,15 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
     {
         public override void OnInspectorGUI()
         {
+        }
+
+        [MenuItem("CONTEXT/LWRPAdditionalLightData/Remove Component")]
+        static void RemoveComponent(MenuCommand command)
+        {
+            if (EditorUtility.DisplayDialog("Remove Component?", "Are you sure you want to remove this component? If you do, you will lose some settings.", "Remove", "Cancel"))
+            {
+                Undo.DestroyObjectImmediate(command.context);
+            }
         }
     }
 }
