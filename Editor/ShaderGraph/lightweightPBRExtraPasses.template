@@ -58,7 +58,7 @@ ${VertexShaderDescriptionInputs}
 ${VertexShaderOutputs}
 	    
 	    float3 positionWS = TransformObjectToWorld(v.vertex.xyz);
-        float3 normalWS = TransformObjectToWorldDir(v.normal);
+        float3 normalWS = TransformObjectToWorldNormal(v.normal);
 
         float4 clipPos = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, _LightDirection));
 
@@ -166,6 +166,7 @@ ${VertexShaderOutputs}
     half4 frag(VertexOutput IN ${FaceSign}) : SV_TARGET
     {
         UNITY_SETUP_INSTANCE_ID(IN);
+		UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 
         // Pixel transformations performed by graph
 ${PixelShader}
@@ -248,6 +249,7 @@ ${VertexShaderOutputs}
     half4 frag(VertexOutput IN ${FaceSign}) : SV_TARGET
     {
         UNITY_SETUP_INSTANCE_ID(IN);
+		UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 
         // Pixel transformations performed by graph
 ${PixelShader}

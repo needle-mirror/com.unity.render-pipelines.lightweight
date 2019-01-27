@@ -66,8 +66,11 @@ namespace UnityEngine.Experimental.Rendering.LWRP
             CommandBuffer cmd = CommandBufferPool.Get(k_RenderOpaquesTag);
             using (new ProfilingSample(cmd, k_RenderOpaquesTag))
             {
-                RenderBufferLoadAction loadOp = RenderBufferLoadAction.DontCare;
+                // When ClearFlag.None that means this is not the first render pass to write to camera target.
+                // In that case we set loadOp for both color and depth as RenderBufferLoadAction.Load
+                RenderBufferLoadAction loadOp = clearFlag != ClearFlag.None ? RenderBufferLoadAction.DontCare : RenderBufferLoadAction.Load;
                 RenderBufferStoreAction storeOp = RenderBufferStoreAction.Store;
+
                 SetRenderTarget(cmd, colorAttachmentHandle.Identifier(), loadOp, storeOp,
                     depthAttachmentHandle.Identifier(), loadOp, storeOp, clearFlag, clearColor, descriptor.dimension);
 
