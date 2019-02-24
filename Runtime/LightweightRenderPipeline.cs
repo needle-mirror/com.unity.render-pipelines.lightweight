@@ -72,8 +72,7 @@ namespace UnityEngine.Rendering.LWRP
 
             SetSupportedRenderingFeatures();
 
-            // Unity engine introduced a bug that breaks SRP batcher on metal :( disabling it for now.
-            GraphicsSettings.useScriptableRenderPipelineBatching = asset.useSRPBatcher && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Metal;
+            GraphicsSettings.useScriptableRenderPipelineBatching = asset.useSRPBatcher;
 
             PerFrameBuffer._GlossyEnvironmentColor = Shader.PropertyToID("_GlossyEnvironmentColor");
             PerFrameBuffer._SubtractiveShadowColor = Shader.PropertyToID("_SubtractiveShadowColor");
@@ -110,7 +109,7 @@ namespace UnityEngine.Rendering.LWRP
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
-            BeginFrameRendering(cameras);
+            BeginFrameRendering(renderContext, cameras);
 
             GraphicsSettings.lightsUseLinearIntensity = (QualitySettings.activeColorSpace == ColorSpace.Linear);
             SetupPerFrameShaderConstants();
@@ -118,13 +117,17 @@ namespace UnityEngine.Rendering.LWRP
             SortCameras(cameras);
             foreach (Camera camera in cameras)
             {
-                BeginCameraRendering(camera);
+                BeginCameraRendering(renderContext, camera);
 
                 foreach (var beforeCamera in camera.GetComponents<IBeforeCameraRender>())
                     beforeCamera.ExecuteBeforeCameraRender(this, renderContext, camera);
 
                 RenderSingleCamera(this, renderContext, camera, camera.GetComponent<IRendererSetup>());
+
+                EndCameraRendering(renderContext, camera);
             }
+
+            EndFrameRendering(renderContext, cameras);
         }
 
         public static void RenderSingleCamera(LightweightRenderPipeline pipelineInstance, ScriptableRenderContext context, Camera camera, IRendererSetup setup = null)
