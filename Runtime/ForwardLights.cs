@@ -1,19 +1,10 @@
-using System;
-using Unity.Collections;
+using UnityEngine;
 using UnityEngine.Experimental.GlobalIllumination;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.LWRP;
+using Unity.Collections;
 
-namespace UnityEngine.Experimental.Rendering.LWRP
+namespace UnityEngine.Rendering.LWRP
 {
-    /// <summary>
-    /// Configure the shader constants needed by the render pipeline
-    ///
-    /// This pass configures constants that LWRP uses when rendering.
-    /// For example, you can execute this pass before you render opaque
-    /// objects, to make sure that lights are configured correctly.
-    /// </summary>
-    internal class SetupLightweightConstanstPass : ScriptableRenderPass
+    internal class ForwardLights
     {
         static class LightConstantBuffer
         {
@@ -25,10 +16,8 @@ namespace UnityEngine.Experimental.Rendering.LWRP
             public static int _AdditionalLightsColor;
             public static int _AdditionalLightsAttenuation;
             public static int _AdditionalLightsSpotDir;
-
-            public static int _AdditionalLightsBuffer;
         }
-
+        
         const string k_SetupLightConstants = "Setup Light Constants";
         MixedLightingSetup m_MixedLightingSetup;
 
@@ -41,14 +30,8 @@ namespace UnityEngine.Experimental.Rendering.LWRP
         Vector4[] m_AdditionalLightColors;
         Vector4[] m_AdditionalLightAttenuations;
         Vector4[] m_AdditionalLightSpotDirections;
-
-        private int maxVisibleAdditionalLights { get; set; }
-        private ComputeBuffer perObjectLightIndices { get; set; }
-
-        /// <summary>
-        /// Create the pass
-        /// </summary>
-        public SetupLightweightConstanstPass()
+        
+        public ForwardLights()
         {
             LightConstantBuffer._MainLightPosition = Shader.PropertyToID("_MainLightPosition");
             LightConstantBuffer._MainLightColor = Shader.PropertyToID("_MainLightColor");
@@ -57,31 +40,32 @@ namespace UnityEngine.Experimental.Rendering.LWRP
             LightConstantBuffer._AdditionalLightsColor = Shader.PropertyToID("_AdditionalLightsColor");
             LightConstantBuffer._AdditionalLightsAttenuation = Shader.PropertyToID("_AdditionalLightsAttenuation");
             LightConstantBuffer._AdditionalLightsSpotDir = Shader.PropertyToID("_AdditionalLightsSpotDir");
-            LightConstantBuffer._AdditionalLightsBuffer = Shader.PropertyToID("_AdditionalLightsBuffer");
 
-            m_AdditionalLightPositions = new Vector4[0];
-            m_AdditionalLightColors = new Vector4[0];
-            m_AdditionalLightAttenuations = new Vector4[0];
-            m_AdditionalLightSpotDirections = new Vector4[0];
+            int maxLights = LightweightRenderPipeline.maxVisibleAdditionalLights;
+            m_AdditionalLightPositions = new Vector4[maxLights];
+            m_AdditionalLightColors = new Vector4[maxLights];
+            m_AdditionalLightAttenuations = new Vector4[maxLights];
+            m_AdditionalLightSpotDirections = new Vector4[maxLights];
         }
 
-        /// <summary>
-        /// Configure the pass
-        /// </summary>
-        /// <param name="maxVisibleAdditionalLights">Maximum number of visible additional lights</param>
-        /// <param name="perObjectLightIndices">Buffer holding per object light indicies</param>
-        public void Setup(int maxVisibleAdditionalLights, ComputeBuffer perObjectLightIndices)
+        public void Setup(ScriptableRenderContext context, ref RenderingData renderingData)
         {
-            this.maxVisibleAdditionalLights = maxVisibleAdditionalLights;
-            this.perObjectLightIndices = perObjectLightIndices;
+            SetupPerObjectLightIndices(renderingData.cullResults, ref renderingData.lightData);
+            
+            int additionalLightsCount = renderingData.lightData.additionalLightsCount;
+            bool additionalLightsPerVertex = renderingData.lightData.shadeAdditionalLightsPerVertex;
+            CommandBuffer cmd = CommandBufferPool.Get(k_SetupLightConstants);
+            SetupShaderLightConstants(cmd, ref renderingData.lightData);
 
-            if (m_AdditionalLightColors.Length != maxVisibleAdditionalLights)
-            {
-                m_AdditionalLightPositions = new Vector4[maxVisibleAdditionalLights];
-                m_AdditionalLightColors = new Vector4[maxVisibleAdditionalLights];
-                m_AdditionalLightAttenuations = new Vector4[maxVisibleAdditionalLights];
-                m_AdditionalLightSpotDirections = new Vector4[maxVisibleAdditionalLights];
-            }
+            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.AdditionalLightsVertex,
+                additionalLightsCount > 0 && additionalLightsPerVertex);
+            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.AdditionalLightsPixel,
+                additionalLightsCount > 0 && !additionalLightsPerVertex);
+            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MixedLightingSubtractive,
+                renderingData.lightData.supportsMixedLighting &&
+                m_MixedLightingSetup == MixedLightingSetup.Subtractive);
+            context.ExecuteCommandBuffer(cmd);
+            CommandBufferPool.Release(cmd);
         }
 
         void InitializeLightConstants(NativeArray<VisibleLight> lights, int lightIndex, out Vector4 lightPos, out Vector4 lightColor, out Vector4 lightAttenuation, out Vector4 lightSpotDir)
@@ -182,7 +166,7 @@ namespace UnityEngine.Experimental.Rendering.LWRP
         void SetupShaderLightConstants(CommandBuffer cmd, ref LightData lightData)
         {
             // Clear to default all light constant data
-            for (int i = 0; i < maxVisibleAdditionalLights; ++i)
+            for (int i = 0; i < LightweightRenderPipeline.maxVisibleAdditionalLights; ++i)
                 InitializeLightConstants(lightData.visibleLights, -1, out m_AdditionalLightPositions[i],
                     out m_AdditionalLightColors[i],
                     out m_AdditionalLightAttenuations[i],
@@ -207,6 +191,7 @@ namespace UnityEngine.Experimental.Rendering.LWRP
 
         void SetupAdditionalLightConstants(CommandBuffer cmd, ref LightData lightData)
         {
+            int maxVisibleAdditionalLights = LightweightRenderPipeline.maxVisibleAdditionalLights;
             var lights = lightData.visibleLights;
             if (lightData.additionalLightsCount > 0)
             {
@@ -226,11 +211,6 @@ namespace UnityEngine.Experimental.Rendering.LWRP
 
                 cmd.SetGlobalVector(LightConstantBuffer._AdditionalLightsCount, new Vector4(lightData.maxPerObjectAdditionalLightsCount,
                     0.0f, 0.0f, 0.0f));
-
-                // if not using a compute buffer, engine will set indices in 2 vec4 constants
-                // unity_4LightIndices0 and unity_4LightIndices1
-                if (perObjectLightIndices != null)
-                    cmd.SetGlobalBuffer(LightConstantBuffer._AdditionalLightsBuffer, perObjectLightIndices);
             }
             else
             {
@@ -243,22 +223,42 @@ namespace UnityEngine.Experimental.Rendering.LWRP
             cmd.SetGlobalVectorArray(LightConstantBuffer._AdditionalLightsSpotDir, m_AdditionalLightSpotDirections);
         }
         
-        /// <inheritdoc/>
-        public override void Execute(ScriptableRenderer renderer, ScriptableRenderContext context, ref RenderingData renderingData)
+        void SetupPerObjectLightIndices(CullingResults cullResults, ref LightData lightData)
         {
-            if (renderer == null)
-                throw new ArgumentNullException("renderer");
+            if (lightData.additionalLightsCount == 0)
+                return;
 
-            int additionalLightsCount = renderingData.lightData.additionalLightsCount;
-            bool additionalLightsPerVertex = renderingData.lightData.shadeAdditionalLightsPerVertex;
-            CommandBuffer cmd = CommandBufferPool.Get(k_SetupLightConstants);
-            SetupShaderLightConstants(cmd, ref renderingData.lightData);
+            var visibleLights = lightData.visibleLights;
+            var perObjectLightIndexMap = cullResults.GetLightIndexMap(Allocator.Temp);
+            int directionalLightsCount = 0;
+            int additionalLightsCount = 0;
 
-            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.AdditionalLightsVertex, additionalLightsCount > 0 && additionalLightsPerVertex);
-            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.AdditionalLightsPixel, additionalLightsCount > 0 && !additionalLightsPerVertex);
-            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MixedLightingSubtractive, renderingData.lightData.supportsMixedLighting && m_MixedLightingSetup == MixedLightingSetup.Subtractive);
-            context.ExecuteCommandBuffer(cmd);
-            CommandBufferPool.Release(cmd);
+            // Disable all directional lights from the perobject light indices
+            // Pipeline handles them globally.
+            for (int i = 0; i < visibleLights.Length; ++i)
+            {
+                if (additionalLightsCount >= LightweightRenderPipeline.maxVisibleAdditionalLights)
+                    break;
+
+                VisibleLight light = visibleLights[i];
+                if (light.lightType == LightType.Directional)
+                {
+                    perObjectLightIndexMap[i] = -1;
+                    ++directionalLightsCount;
+                }
+                else
+                {
+                    perObjectLightIndexMap[i] -= directionalLightsCount;
+                    ++additionalLightsCount;
+                }
+            }
+
+            // Disable all remaining lights we cannot fit into the global light buffer.
+            for (int i = directionalLightsCount + additionalLightsCount; i < visibleLights.Length; ++i)
+                perObjectLightIndexMap[i] = -1;
+
+            cullResults.SetLightIndexMap(perObjectLightIndexMap);
+            perObjectLightIndexMap.Dispose();
         }
     }
 }
