@@ -113,10 +113,7 @@ namespace UnityEngine.Rendering.LWRP
             foreach (Camera camera in cameras)
             {
                 BeginCameraRendering(renderContext, camera);
-
-                UnityEngine.Experimental.VFX.VFXManager.ProcessCamera(camera); //Visual Effect Graph is not yet a required package but calling this method when there isn't any VisualEffect component has no effect (but needed for Camera sorting in Visual Effect Graph context)
                 RenderSingleCamera(renderContext, camera);
-
                 EndCameraRendering(renderContext, camera);
             }
 
@@ -143,8 +140,8 @@ namespace UnityEngine.Rendering.LWRP
                 return;
             }
 
-            CommandBuffer cmd = CommandBufferPool.Get(camera.name);
-            using (new ProfilingSample(cmd, camera.name))
+            CommandBuffer cmd = CommandBufferPool.Get(k_RenderCameraTag);
+            using (new ProfilingSample(cmd, k_RenderCameraTag))
             {
                 renderer.Clear();
                 renderer.SetupCullingParameters(ref cullingParameters, ref cameraData);
@@ -178,7 +175,7 @@ namespace UnityEngine.Rendering.LWRP
             {
                 reflectionProbeModes = SupportedRenderingFeatures.ReflectionProbeModes.None,
                 defaultMixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.Subtractive,
-                mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.Subtractive | SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly,
+                mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.Subtractive,
                 lightmapBakeTypes = LightmapBakeType.Baked | LightmapBakeType.Mixed,
                 lightmapsModes = LightmapsMode.CombinedDirectional | LightmapsMode.NonDirectional,
                 lightProbeProxyVolumes = false,
@@ -401,7 +398,7 @@ namespace UnityEngine.Rendering.LWRP
 
         static PerObjectData GetPerObjectLightFlags(int additionalLightsCount)
         {
-            var configuration = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.LightData | PerObjectData.OcclusionProbe;
+            var configuration = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.LightData;
 
             if (additionalLightsCount > 0)
                 configuration |= PerObjectData.LightIndices;

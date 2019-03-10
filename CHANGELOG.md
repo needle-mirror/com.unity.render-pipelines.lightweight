@@ -4,51 +4,14 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [5.13.0] - 2019-04-15
-### Fixed
-- When in playmode, the error 'Non matching Profiler.EndSample' no longer appears. [case 1140750](https://fogbugz.unity3d.com/f/cases/1140750/)
-- LWRP Particle Shaders now correctly render in stereo rendering modes. [case 1106699](https://fogbugz.unity3d.com/f/cases/1106699/)
-- Shaders with 'debug' in the name are no longer stripped automatically. [case 1112983](https://fogbugz.unity3d.com/f/cases/1112983/)
-- Fixed tiling issue with selection outline and baked cutout shadows.
-- in the Shadergraph Unlit Master node, Premultiply no longer acts the same as Alpha. [case 1114708](https://fogbugz.unity3d.com/f/cases/1114708/)
-- Fixed an issue where Lightprobe data was missing if it was needed per-pixel and GPU instancing was enabled.
-- The Soft ScreenSpaceShadows Shader variant no longer gets stripped form builds. [case 1138236](https://fogbugz.unity3d.com/f/cases/1138236/)
+## [6.5.2] - 2019-03-11
 
-## [5.12.0] - 2019-04-11
-
-## [5.11.0] - 2019-04-01
-### Fixed
-- Fixed an issue that caused transparent objects to sort incorrectly.
-- Fixed artifacts that appeared due to precision errors in large scaled objects.
-
-## [5.10.0] - 2019-03-19
-### Added
-- Added RenderObjects. You can add RenderObjects to a Renderer to perform custom rendering.
-
-### Fixed
-- Fixed an XR rendering issue where Unity required a depth texture.
-
-## [5.9.0] - 2019-03-15
-### Fixed
-- Fixed split-screen rendering on mobile platforms.
-- Fixed rendering when using an off-screen camera that renders to a depth texture.
-- Exposed stencil render state in the renderer.
-- The default layer mask is now applied to a depth pre-pass.
-- Several improvements and fixes to the render pass UI.
-
-## [5.8.0] - 2019-03-13
-### Added
-- Added support for Baked Indirect mixed lighting.
-- You can now use Light Probes for occlusion. This means that baked lights can now occlude dynamic objects.
-
+## [6.5.1] - 2019-03-08
 ### Fixed
 - Fixed a project import issue in the LWRP template.
-- Fixed the warnings that appear when you create new Unlit Shader Graphs using the Lightweight Render Pipeline.
-- Fixed light attenuation precision on mobile platforms.
 
-## [5.7.0] - 2019-03-07
+## [6.5.0] - 2019-03-07
 ### Added
-- Added support for overriding terrain detail rendering shaders, via the render pipeline editor resources asset
 - You can now create a custom forward renderer by clicking on `Assets/Create/Rendering/Lightweight Render Pipeline/Forward Renderer`. This creates an Asset in your Project. You can add additional features to it and drag-n-drop the renderer to either the pipeline Asset or to a camera.
 - You can now add `ScriptableRendererFeature`  to the `ScriptableRenderer` to extend it with custom effects. A feature is an `ScriptableObject` that can be drag-n-dropped in the renderer and adds one or more `ScriptableRenderPass` to the renderer.
 - `ScriptableRenderer` now exposes interface to configure lights. To do so, implement `SetupLights` when you create a new renderer.
@@ -70,32 +33,27 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Removed `GetCameraClearFlag` from `ScriptableRenderer`.
 
 ### Fixed
-- Terrain detail rendering now works correctly when LWRP is installed but inactive.
 - Fixed y-flip in VR when post-processing is active.
 - Fixed occlusion mesh for VR not rendering before rendering opaques.
 - Enabling or disabling SRP Batcher in runtime works now.
 - Fixed video player recorder when post-processing is enabled.
 
-## [5.6.0] - 2019-02-21
+## [6.4.0] - 2019-02-21
 
-## [5.5.0] - 2019-02-18
+## [6.3.0] - 2019-02-18
+
+## [6.2.0] - 2019-02-15
+
 ### Changed
 - Code refactor: all macros with ARGS have been swapped with macros with PARAM. This is because the ARGS macros were incorrectly named.
 
-## [5.4.0] - 2019-02-11
-### Fixed
-- Fixed the SRP Batcher, so it now works with MacOS and iOS.
+## [6.1.0] - 2019-02-13
 
-## [5.3.1] - 2019-01-28
-
-### Fixed
-- Fixed Per-object reflection probes.
-
-## [5.3.0] - 2019-01-28
+## [6.0.0] - 2019-02-23
 ### Added
+- You can now implement a custom renderer for LWRP. To do so, implement an `IRendererData` that contains all resources used in rendering. Then create an `IRendererSetup` that creates and queues `ScriptableRenderPass`. Change the renderer type either in the Pipeline Asset or in the Camera Inspector.
 - LWRP now uses the Unity recorder extension. You can use this to capture the output of Cameras.
 - You can now inject a custom render pass before LWRP renders opaque objects. To do so, implement an `IBeforeRender` interface.
-- Baked Lit Shader, which uses global illumination via Light Probes and lightmaps, but no real-time lighting. 
 - Distortion support in all Particle Shaders.
 - An upgrade system for LWRP Materials with `MaterialPostprocessor`.
 - An upgrade path for Unlit shaders
@@ -106,6 +64,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - LWRP now includes version defines for both C# and Shaders in the format of `LWRP_X_Y_Z_OR_NEWER`. For example, `LWRP_5_3_0_OR_NEWER` defines version 5.3.0.
 - The Terrain Lit Shader now samples Spherical Harmonics if you haven't baked any lightmaps for terrain.
 - Added a __Priority__ option, which you can use to tweak the rendering order. This is similar to render queue in the built-in render pipeline. These Shaders now have this option: Lit, Simple Lit, Baked Lit, Unlit, and all three Particle Shaders.
+- Added support for overriding terrain detail rendering shaders, via the render pipeline editor resources asset.
 
 ### Changed
 - You can now only initialize a camera by setting a Background Type. The supported options are Skybox, Solid Color, and Don't Care.
@@ -142,6 +101,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Post-processing in mobile VR is now forced to be disabled. It was causing many rendering issues.
 - Fixed Editor Previews breaking in Play Mode when VR is enabled. [Case 1109009](https://issuetracker.unity3d.com/issues/lwrp-editor-previews-break-in-play-mode-if-vr-is-enabled)
 - A camera's HDR enable flag is now respected when rendering in XR.
+- Terrain detail rendering now works correctly when LWRP is installed but inactive.
 
 ## [5.2.0] - 2018-11-27
 ### Added

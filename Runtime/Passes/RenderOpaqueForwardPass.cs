@@ -3,35 +3,24 @@ using System.Collections.Generic;
 namespace UnityEngine.Rendering.LWRP
 {
     /// <summary>
-    /// Draw  objects into the given color and depth target
+    /// Render all opaque forward objects into the given color and depth target
     ///
     /// You can use this pass to render objects that have a material and/or shader
-    /// with the pass names LightweightForward or SRPDefaultUnlit.
+    /// with the pass names LightweightForward or SRPDefaultUnlit. The pass only
+    /// renders objects in the rendering queue range of Opaque objects.
     /// </summary>
-    internal class DrawObjectsPass : ScriptableRenderPass
+    internal class RenderOpaqueForwardPass : ScriptableRenderPass
     {
         FilteringSettings m_FilteringSettings;
-        RenderStateBlock m_RenderStateBlock;
-        List<ShaderTagId> m_ShaderTagIdList = new List<ShaderTagId>();
-        string m_ProfilerTag;
-        bool m_IsOpaque;
+        const string m_ProfilerTag = "Render Opaques";
+        private List<ShaderTagId> m_ShaderTagIdList = new List<ShaderTagId>();
 
-        public DrawObjectsPass(string profilerTag, bool opaque, RenderPassEvent evt, RenderQueueRange renderQueueRange, LayerMask layerMask, StencilState stencilState, int stencilReference)
+        public RenderOpaqueForwardPass(RenderPassEvent evt, RenderQueueRange renderQueueRange, LayerMask layerMask)
         {
-            m_ProfilerTag = profilerTag;
             m_ShaderTagIdList.Add(new ShaderTagId("LightweightForward"));
             m_ShaderTagIdList.Add(new ShaderTagId("SRPDefaultUnlit"));
             renderPassEvent = evt;
             m_FilteringSettings = new FilteringSettings(renderQueueRange, layerMask);
-            m_RenderStateBlock = new RenderStateBlock(RenderStateMask.Nothing);
-            m_IsOpaque = opaque;
-
-            if (stencilState.enabled)
-            {
-                m_RenderStateBlock.stencilReference = stencilReference;
-                m_RenderStateBlock.mask = RenderStateMask.Stencil;
-                m_RenderStateBlock.stencilState = stencilState;
-            }
         }
 
         /// <inheritdoc/>
@@ -44,9 +33,9 @@ namespace UnityEngine.Rendering.LWRP
                 cmd.Clear();
 
                 Camera camera = renderingData.cameraData.camera;
-                var sortFlags = (m_IsOpaque) ? renderingData.cameraData.defaultOpaqueSortFlags : SortingCriteria.CommonTransparent;
+                var sortFlags = renderingData.cameraData.defaultOpaqueSortFlags;
                 var drawSettings = CreateDrawingSettings(m_ShaderTagIdList, ref renderingData, sortFlags);
-                context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref m_FilteringSettings, ref m_RenderStateBlock);
+                context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref m_FilteringSettings);
 
                 // Render objects that did not match any shader pass with error shader
                 RenderingUtils.RenderObjectsWithError(context, ref renderingData.cullResults, camera, m_FilteringSettings, SortingCriteria.None);

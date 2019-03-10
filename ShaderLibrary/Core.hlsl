@@ -45,7 +45,7 @@ struct VertexNormalInputs
 {
     real3 tangentWS;
     real3 bitangentWS;
-    float3 normalWS;
+    real3 normalWS;
 };
 
 VertexPositionInputs GetVertexPositionInputs(float3 positionOS)

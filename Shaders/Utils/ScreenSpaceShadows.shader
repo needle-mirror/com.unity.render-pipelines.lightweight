@@ -95,7 +95,6 @@ Shader "Hidden/Lightweight Render Pipeline/ScreenSpaceShadows"
             Cull Off
 
             HLSLPROGRAM
-            #pragma multi_compile _MAIN_LIGHT_SHADOWS
             #pragma multi_compile _ _SHADOWS_SOFT
 
             #pragma vertex   Vertex
