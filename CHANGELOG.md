@@ -4,9 +4,13 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [5.8.2] - 2019-03-14
-
-## [5.8.1] - 2019-03-13
+## [5.9.0] - 2019-03-15
+### Fixed
+- Fixed split-screen rendering on mobile platforms.
+- Fixed rendering when using an off-screen camera that renders to a depth texture.
+- Exposed stencil render state in the renderer.
+- The default layer mask is now applied to a depth pre-pass.
+- Several improvements and fixes to the render pass UI.
 
 ## [5.8.0] - 2019-03-13
 ### Added
