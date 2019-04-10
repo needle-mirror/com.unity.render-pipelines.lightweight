@@ -22,9 +22,9 @@ namespace UnityEngine.Rendering.LWRP
         /// <summary>
         /// Create the DepthOnlyPass
         /// </summary>
-        public DepthOnlyPass(RenderPassEvent evt, RenderQueueRange renderQueueRange, LayerMask layerMask)
+        public DepthOnlyPass(RenderPassEvent evt, RenderQueueRange renderQueueRange)
         {
-            m_FilteringSettings = new FilteringSettings(renderQueueRange, layerMask);
+            m_FilteringSettings = new FilteringSettings(renderQueueRange);
             renderPassEvent = evt;
         }
 
@@ -60,6 +60,7 @@ namespace UnityEngine.Rendering.LWRP
                 context.ExecuteCommandBuffer(cmd);
                 cmd.Clear();
 
+                m_FilteringSettings.layerMask = renderingData.cameraData.camera.cullingMask;
                 var sortFlags = renderingData.cameraData.defaultOpaqueSortFlags;
                 var drawSettings = CreateDrawingSettings(m_ShaderTagId, ref renderingData, sortFlags);
                 drawSettings.perObjectData = PerObjectData.None;
