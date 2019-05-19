@@ -113,7 +113,10 @@ namespace UnityEngine.Rendering.LWRP
             foreach (Camera camera in cameras)
             {
                 BeginCameraRendering(renderContext, camera);
+
+                UnityEngine.Experimental.VFX.VFXManager.ProcessCamera(camera); //Visual Effect Graph is not yet a required package but calling this method when there isn't any VisualEffect component has no effect (but needed for Camera sorting in Visual Effect Graph context)
                 RenderSingleCamera(renderContext, camera);
+
                 EndCameraRendering(renderContext, camera);
             }
 
@@ -140,8 +143,8 @@ namespace UnityEngine.Rendering.LWRP
                 return;
             }
 
-            CommandBuffer cmd = CommandBufferPool.Get(k_RenderCameraTag);
-            using (new ProfilingSample(cmd, k_RenderCameraTag))
+            CommandBuffer cmd = CommandBufferPool.Get(camera.name);
+            using (new ProfilingSample(cmd, camera.name))
             {
                 renderer.Clear();
                 renderer.SetupCullingParameters(ref cullingParameters, ref cameraData);
@@ -175,7 +178,7 @@ namespace UnityEngine.Rendering.LWRP
             {
                 reflectionProbeModes = SupportedRenderingFeatures.ReflectionProbeModes.None,
                 defaultMixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.Subtractive,
-                mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.Subtractive,
+                mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.Subtractive | SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly,
                 lightmapBakeTypes = LightmapBakeType.Baked | LightmapBakeType.Mixed,
                 lightmapsModes = LightmapsMode.CombinedDirectional | LightmapsMode.NonDirectional,
                 lightProbeProxyVolumes = false,
@@ -191,6 +194,7 @@ namespace UnityEngine.Rendering.LWRP
         {
             const float kRenderScaleThreshold = 0.05f;
             cameraData.camera = camera;
+            cameraData.isStereoEnabled = IsStereoEnabled(camera);
 
             int msaaSamples = 1;
             if (camera.allowMSAA && settings.msaaSampleCount > 1)
@@ -198,18 +202,26 @@ namespace UnityEngine.Rendering.LWRP
 
             if (Camera.main == camera && camera.cameraType == CameraType.Game && camera.targetTexture == null)
             {
+                bool msaaSampleCountHasChanged = false;
+                int currentQualitySettingsSampleCount = QualitySettings.antiAliasing;
+                if (currentQualitySettingsSampleCount != msaaSamples &&
+                    !(currentQualitySettingsSampleCount == 0 && msaaSamples == 1))
+                {
+                    msaaSampleCountHasChanged = true;
+                }
+
                 // There's no exposed API to control how a backbuffer is created with MSAA
                 // By settings antiAliasing we match what the amount of samples in camera data with backbuffer
                 // We only do this for the main camera and this only takes effect in the beginning of next frame.
                 // This settings should not be changed on a frame basis so that's fine.
                 QualitySettings.antiAliasing = msaaSamples;
+
+                if (cameraData.isStereoEnabled && msaaSampleCountHasChanged)
+                    XR.XRDevice.UpdateEyeTextureMSAASetting();
             }
             
             cameraData.isSceneViewCamera = camera.cameraType == CameraType.SceneView;
-            cameraData.isStereoEnabled = IsStereoEnabled(camera);
-
             cameraData.isHdrEnabled = camera.allowHDR && settings.supportsHDR;
-
             cameraData.postProcessLayer = camera.GetComponent<PostProcessLayer>();
             cameraData.postProcessEnabled = cameraData.postProcessLayer != null && cameraData.postProcessLayer.isActiveAndEnabled;
 
@@ -398,7 +410,7 @@ namespace UnityEngine.Rendering.LWRP
 
         static PerObjectData GetPerObjectLightFlags(int additionalLightsCount)
         {
-            var configuration = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.LightData;
+            var configuration = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.LightData | PerObjectData.OcclusionProbe;
 
             if (additionalLightsCount > 0)
                 configuration |= PerObjectData.LightIndices;

@@ -50,6 +50,8 @@ namespace UnityEngine.Rendering.LWRP
                 PBRMasterNode.PositionSlotId
             }
         };
+        
+        public int GetPreviewPassIndex() { return 0; }
 
         public string GetSubshader(IMasterNode masterNode, GenerationMode mode, List<string> sourceAssetDependencyPaths = null)
         {
@@ -115,11 +117,13 @@ namespace UnityEngine.Rendering.LWRP
 
         static string GetTemplatePath(string templateName)
         {
-            var pathSegments = new[] { "Packages", "com.unity.render-pipelines.lightweight", "Editor", "ShaderGraph", templateName };
-            var path = pathSegments.Aggregate("", Path.Combine);
-            if (!File.Exists(path))
-                throw new FileNotFoundException(string.Format(@"Cannot find a template with name ""{0}"".", templateName));
-            return path;
+            var basePath = "Packages/com.unity.render-pipelines.lightweight/Editor/ShaderGraph/";
+            string templatePath = Path.Combine(basePath, templateName);
+
+            if (File.Exists(templatePath))
+                return templatePath;
+
+            throw new FileNotFoundException(string.Format(@"Cannot find a template with name ""{0}"".", templateName));
         }
 
         static string GetShaderPassFromTemplate(string template, UnlitMasterNode masterNode, Pass pass, GenerationMode mode, SurfaceMaterialOptions materialOptions)
@@ -293,7 +297,7 @@ namespace UnityEngine.Rendering.LWRP
             // -------------------------------------
             // Generate Output structure for Surface Description function
 
-            GraphUtil.GenerateSurfaceDescriptionStruct(surfaceDescriptionStruct, pixelSlots, true);
+            GraphUtil.GenerateSurfaceDescriptionStruct(surfaceDescriptionStruct, pixelSlots);
 
             // -------------------------------------
             // Generate Surface Description function
@@ -363,7 +367,7 @@ namespace UnityEngine.Rendering.LWRP
             // -------------------------------------
             // Combine Graph sections
 
-            graph.AppendLine(shaderProperties.GetPropertiesDeclaration(1));
+            graph.AppendLine(shaderProperties.GetPropertiesDeclaration(1, mode));
 
             graph.AppendLine(vertexDescriptionInputStruct.ToString());
             graph.AppendLine(surfaceDescriptionInputStruct.ToString());
