@@ -4,6 +4,33 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [5.16.1] - 2019-05-22
+### Changed
+- This package now requires Unity 2019.1.3f1 or later to run.
+
+## [5.16.0] - 2019-05-20
+
+### Version Updated
+The version number for this package has increased due to a version update of a related graphics package.
+
+## [5.15.0] - 2019-05-13
+### Changed
+- Updated the [Feature Comparison Table](lwrp-builtin-feature-comparison.md) to reflect the current state of LWRP features.
+
+### Fixed
+- Fixed a NullReference exception when you create a new Lightweight Render Pipeline Asset. [case 1153388](https://issuetracker.unity3d.com/product/unity/issues/guid/1153388/) 
+
+## [5.14.0] - 2019-05-09
+### Added
+- Added SpeedTree shaders.
+
+### Fixed
+- Fixed a typo in the Particle Unlit Shader, so Soft Particles now work correctly.
+- Fixed emissive Materials not being baked for some meshes. [case 1145297](https://issuetracker.unity3d.com/issues/lwrp-emissive-materials-are-not-baked)
+- Camera matrices are now correctly set up when you call rendering functions in EndCameraRendering. [case 1146586](https://issuetracker.unity3d.com/issues/lwrp-drawmeshnow-returns-wrong-positions-slash-scales-when-called-from-endcamerarendering-hook)
+- Fixed GI not baking correctly while in gamma color space.
+- Fixed a NullReference exception when adding a renderer feature that is contained in a global namespace. [case 1147068](https://issuetracker.unity3d.com/issues/scriptablerenderpipeline-inspector-ui-crashes-when-a-scriptablerenderfeature-is-not-in-a-namespace)
+
 ## [5.13.0] - 2019-04-15
 ### Fixed
 - When in playmode, the error 'Non matching Profiler.EndSample' no longer appears. [case 1140750](https://fogbugz.unity3d.com/f/cases/1140750/)

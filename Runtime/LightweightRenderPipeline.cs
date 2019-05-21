@@ -12,17 +12,24 @@ namespace UnityEngine.Rendering.LWRP
 {
     public sealed partial class LightweightRenderPipeline : RenderPipeline
     {
-        static class PerFrameBuffer
+        static internal class PerFrameBuffer
         {
             public static int _GlossyEnvironmentColor;
             public static int _SubtractiveShadowColor;
+
+            public static int _Time;
+            public static int _SinTime;
+            public static int _CosTime;
+            public static int unity_DeltaTime;
         }
 
-        static class PerCameraBuffer
+        static internal class PerCameraBuffer
         {
             // TODO: This needs to account for stereo rendering
             public static int _InvCameraViewProj;
             public static int _ScaledScreenParams;
+            public static int _ScreenParams;
+            public static int _WorldSpaceCameraPos;
         }
 
         public const string k_ShaderTagName = "LightweightPipeline";
@@ -73,8 +80,15 @@ namespace UnityEngine.Rendering.LWRP
             PerFrameBuffer._GlossyEnvironmentColor = Shader.PropertyToID("_GlossyEnvironmentColor");
             PerFrameBuffer._SubtractiveShadowColor = Shader.PropertyToID("_SubtractiveShadowColor");
 
+            PerFrameBuffer._Time = Shader.PropertyToID("_Time");
+            PerFrameBuffer._SinTime = Shader.PropertyToID("_SinTime");
+            PerFrameBuffer._CosTime = Shader.PropertyToID("_CosTime");
+            PerFrameBuffer.unity_DeltaTime = Shader.PropertyToID("unity_DeltaTime");
+
             PerCameraBuffer._InvCameraViewProj = Shader.PropertyToID("_InvCameraViewProj");
+            PerCameraBuffer._ScreenParams = Shader.PropertyToID("_ScreenParams");
             PerCameraBuffer._ScaledScreenParams = Shader.PropertyToID("_ScaledScreenParams");
+            PerCameraBuffer._WorldSpaceCameraPos = Shader.PropertyToID("_WorldSpaceCameraPos");
 
             // Let engine know we have MSAA on for cases where we support MSAA backbuffer
             if (QualitySettings.antiAliasing != asset.msaaSampleCount)
@@ -194,6 +208,7 @@ namespace UnityEngine.Rendering.LWRP
         {
             const float kRenderScaleThreshold = 0.05f;
             cameraData.camera = camera;
+            cameraData.isStereoEnabled = IsStereoEnabled(camera);
 
             int msaaSamples = 1;
             if (camera.allowMSAA && settings.msaaSampleCount > 1)
@@ -201,18 +216,26 @@ namespace UnityEngine.Rendering.LWRP
 
             if (Camera.main == camera && camera.cameraType == CameraType.Game && camera.targetTexture == null)
             {
+                bool msaaSampleCountHasChanged = false;
+                int currentQualitySettingsSampleCount = QualitySettings.antiAliasing;
+                if (currentQualitySettingsSampleCount != msaaSamples &&
+                    !(currentQualitySettingsSampleCount == 0 && msaaSamples == 1))
+                {
+                    msaaSampleCountHasChanged = true;
+                }
+
                 // There's no exposed API to control how a backbuffer is created with MSAA
                 // By settings antiAliasing we match what the amount of samples in camera data with backbuffer
                 // We only do this for the main camera and this only takes effect in the beginning of next frame.
                 // This settings should not be changed on a frame basis so that's fine.
                 QualitySettings.antiAliasing = msaaSamples;
+
+                if (cameraData.isStereoEnabled && msaaSampleCountHasChanged)
+                    XR.XRDevice.UpdateEyeTextureMSAASetting();
             }
             
             cameraData.isSceneViewCamera = camera.cameraType == CameraType.SceneView;
-            cameraData.isStereoEnabled = IsStereoEnabled(camera);
-
             cameraData.isHdrEnabled = camera.allowHDR && settings.supportsHDR;
-
             cameraData.postProcessLayer = camera.GetComponent<PostProcessLayer>();
             cameraData.postProcessEnabled = cameraData.postProcessLayer != null && cameraData.postProcessLayer.isActiveAndEnabled;
 
@@ -460,9 +483,14 @@ namespace UnityEngine.Rendering.LWRP
         static void SetupPerCameraShaderConstants(CameraData cameraData)
         {
             Camera camera = cameraData.camera;
-            float cameraWidth = (float)cameraData.camera.pixelWidth * cameraData.renderScale;
-            float cameraHeight = (float)cameraData.camera.pixelHeight * cameraData.renderScale;
-            Shader.SetGlobalVector(PerCameraBuffer._ScaledScreenParams, new Vector4(cameraWidth, cameraHeight, 1.0f + 1.0f / cameraWidth, 1.0f + 1.0f / cameraHeight));
+
+            float scaledCameraWidth = (float)cameraData.camera.pixelWidth * cameraData.renderScale;
+            float scaledCameraHeight = (float)cameraData.camera.pixelHeight * cameraData.renderScale;
+            Shader.SetGlobalVector(PerCameraBuffer._ScaledScreenParams, new Vector4(scaledCameraWidth, scaledCameraHeight, 1.0f + 1.0f / scaledCameraWidth, 1.0f + 1.0f / scaledCameraHeight));
+            Shader.SetGlobalVector(PerCameraBuffer._WorldSpaceCameraPos, camera.transform.position);
+            float cameraWidth = (float)cameraData.camera.pixelWidth;
+            float cameraHeight = (float)cameraData.camera.pixelHeight;
+            Shader.SetGlobalVector(PerCameraBuffer._ScreenParams, new Vector4(cameraWidth, cameraHeight, 1.0f + 1.0f / cameraWidth, 1.0f + 1.0f / cameraHeight));
 
             Matrix4x4 projMatrix = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             Matrix4x4 viewMatrix = camera.worldToCameraMatrix;
