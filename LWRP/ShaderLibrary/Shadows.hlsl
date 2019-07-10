@@ -119,10 +119,8 @@ inline real SampleShadowmap(float4 shadowCoord)
     attenuation = SAMPLE_TEXTURE2D_SHADOW(_ShadowMap, sampler_ShadowMap, shadowCoord.xyz);
 #endif
 
-#if SHADER_HINT_NICE_QUALITY
     // Apply shadow strength
     attenuation = LerpWhiteTo(attenuation, GetShadowStrength());
-#endif
 
     // Shadow coords that fall out of the light frustum volume must always return attenuation 1.0
     return BEYOND_SHADOW_FAR(shadowCoord) ? 1.0 : attenuation;
@@ -161,7 +159,11 @@ float4 ComputeShadowCoord(float4 clipPos)
 
 half RealtimeShadowAttenuation(float4 shadowCoord)
 {
-#if NO_SHADOWS
+#ifndef _SHADOWS_ENABLED
+    return 1.0h;
+#endif
+
+#if defined(NO_SHADOWS)
     return 1.0h;
 #elif SHADOWS_SCREEN
     return SampleScreenSpaceShadowMap(shadowCoord);
