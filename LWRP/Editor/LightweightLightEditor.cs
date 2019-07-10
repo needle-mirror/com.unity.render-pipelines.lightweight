@@ -8,15 +8,15 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
     [CustomEditorForRenderPipeline(typeof(Light), typeof(LightweightPipelineAsset))]
     class LightweightLightEditor : LightEditor
     {
-        AnimBool animShowSpotOptions = new AnimBool();
-        AnimBool animShowPointOptions = new AnimBool();
-        AnimBool animShowDirOptions = new AnimBool();
-        AnimBool animShowAreaOptions = new AnimBool();
-        AnimBool animShowRuntimeOptions = new AnimBool();
-        AnimBool animShowShadowOptions = new AnimBool();
-        AnimBool animBakedShadowAngleOptions = new AnimBool();
-        AnimBool animBakedShadowRadiusOptions = new AnimBool();
-        AnimBool animShowLightBounceIntensity = new AnimBool();
+        AnimBool m_AnimSpotOptions = new AnimBool();
+        AnimBool m_AnimPointOptions = new AnimBool();
+        AnimBool m_AnimDirOptions = new AnimBool();
+        AnimBool m_AnimAreaOptions = new AnimBool();
+        AnimBool m_AnimRuntimeOptions = new AnimBool();
+        AnimBool m_AnimShadowOptions = new AnimBool();
+        AnimBool m_AnimShadowAngleOptions = new AnimBool();
+        AnimBool m_AnimShadowRadiusOptions = new AnimBool();
+        AnimBool m_AnimLightBounceIntensity = new AnimBool();
 
         class Styles
         {
@@ -36,97 +36,49 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
 
         static Styles s_Styles;
 
-        private bool TypeIsSame { get { return !settings.lightType.hasMultipleDifferentValues; } }
-        private bool ShadowTypeIsSame { get { return !settings.shadowsType.hasMultipleDifferentValues; } }
-        private bool LightmappingTypeIsSame { get { return !settings.lightmapping.hasMultipleDifferentValues; } }
-        private Light LightProperty { get { return target as Light; } }
+        public bool typeIsSame { get { return !settings.lightType.hasMultipleDifferentValues; } }
+        public bool shadowTypeIsSame { get { return !settings.shadowsType.hasMultipleDifferentValues; } }
+        public bool lightmappingTypeIsSame { get { return !settings.lightmapping.hasMultipleDifferentValues; } }
+        public Light lightProperty { get { return target as Light; } }
 
-        private bool SpotOptionsValue { get { return TypeIsSame && LightProperty.type == LightType.Spot; } }
-        private bool PointOptionsValue { get { return TypeIsSame && LightProperty.type == LightType.Point; } }
-        private bool DirOptionsValue { get { return TypeIsSame && LightProperty.type == LightType.Directional; } }
-        private bool AreaOptionsValue { get { return TypeIsSame && LightProperty.type == LightType.Area; } }
+        public bool spotOptionsValue { get { return typeIsSame && lightProperty.type == LightType.Spot; } }
+        public bool pointOptionsValue { get { return typeIsSame && lightProperty.type == LightType.Point; } }
+        public bool dirOptionsValue { get { return typeIsSame && lightProperty.type == LightType.Directional; } }
+        public bool areaOptionsValue { get { return typeIsSame && lightProperty.type == LightType.Area; } }
 
         // Point light realtime shadows not supported
-        private bool RuntimeOptionsValue { get { return TypeIsSame && (LightProperty.type != LightType.Area && LightProperty.type != LightType.Point && !settings.isCompletelyBaked); } }
-        private bool BakedShadowRadius { get { return TypeIsSame && (LightProperty.type == LightType.Point || LightProperty.type == LightType.Spot) && settings.isBakedOrMixed; } }
-        private bool BakedShadowAngle { get { return TypeIsSame && LightProperty.type == LightType.Directional && settings.isBakedOrMixed; } }
-        private bool ShadowOptionsValue { get { return ShadowTypeIsSame && LightProperty.shadows != LightShadows.None; } }
+        public bool runtimeOptionsValue { get { return typeIsSame && (lightProperty.type != LightType.Area && lightProperty.type != LightType.Point && !settings.isCompletelyBaked); } }
+        public bool bakedShadowRadius { get { return typeIsSame && (lightProperty.type == LightType.Point || lightProperty.type == LightType.Spot) && settings.isBakedOrMixed; } }
+        public bool bakedShadowAngle { get { return typeIsSame && lightProperty.type == LightType.Directional && settings.isBakedOrMixed; } }
+        public bool shadowOptionsValue { get { return shadowTypeIsSame && lightProperty.shadows != LightShadows.None; } }
 
-        private bool BakingWarningValue { get { return !UnityEditor.Lightmapping.bakedGI && LightmappingTypeIsSame && settings.isBakedOrMixed; } }
-        private bool ShowLightBounceIntensity { get { return true; } }
-        private bool CookieWarningValue
+        public bool bakingWarningValue { get { return !UnityEditor.Lightmapping.bakedGI && lightmappingTypeIsSame && settings.isBakedOrMixed; } }
+        public bool showLightBounceIntensity { get { return true; } }
+        public bool cookieWarningValue
         {
             get
             {
-                return TypeIsSame && LightProperty.type == LightType.Spot &&
+                return typeIsSame && lightProperty.type == LightType.Spot &&
                     !settings.cookieProp.hasMultipleDifferentValues && settings.cookie && settings.cookie.wrapMode != TextureWrapMode.Clamp;
             }
         }
 
-        private bool IsShadowEnabled { get { return settings.shadowsType.intValue != 0; } }
+        public bool isShadowEnabled { get { return settings.shadowsType.intValue != 0; } }
 
-        private bool RealtimeShadowsWarningValue
+        public bool realtimeShadowsWarningValue
         {
             get
             {
-                return TypeIsSame && LightProperty.type == LightType.Point &&
-                    ShadowTypeIsSame && IsShadowEnabled &&
-                    LightmappingTypeIsSame && !settings.isCompletelyBaked;
+                return typeIsSame && lightProperty.type == LightType.Point &&
+                    shadowTypeIsSame && isShadowEnabled &&
+                    lightmappingTypeIsSame && !settings.isCompletelyBaked;
             }
-        }
-
-
-        private void SetOptions(AnimBool animBool, bool initialize, bool targetValue)
-        {
-            if (initialize)
-            {
-                animBool.value = targetValue;
-                animBool.valueChanged.AddListener(Repaint);
-            }
-            else
-            {
-                animBool.target = targetValue;
-            }
-        }
-
-        private void UpdateShowOptions(bool initialize)
-        {
-            SetOptions(animShowSpotOptions, initialize, SpotOptionsValue);
-            SetOptions(animShowPointOptions, initialize, PointOptionsValue);
-            SetOptions(animShowDirOptions, initialize, DirOptionsValue);
-            SetOptions(animShowAreaOptions, initialize, AreaOptionsValue);
-            SetOptions(animShowShadowOptions, initialize, ShadowOptionsValue);
-            SetOptions(animShowRuntimeOptions, initialize, RuntimeOptionsValue);
-            SetOptions(animBakedShadowAngleOptions, initialize, BakedShadowAngle);
-            SetOptions(animBakedShadowRadiusOptions, initialize, BakedShadowRadius);
-            SetOptions(animShowLightBounceIntensity, initialize, ShowLightBounceIntensity);
         }
 
         protected override void OnEnable()
         {
             settings.OnEnable();
             UpdateShowOptions(true);
-        }
-
-        public void DrawSpotAngle()
-        {
-            EditorGUILayout.Slider(settings.spotAngle, 1f, 179f, s_Styles.SpotAngle);
-        }
-
-        public void DrawCookie()
-        {
-            EditorGUILayout.PropertyField(settings.cookieProp, s_Styles.Cookie);
-
-            if (CookieWarningValue)
-            {
-                // warn on spotlights if the cookie is set to repeat
-                EditorGUILayout.HelpBox(s_Styles.CookieWarning.text, MessageType.Warning);
-            }
-        }
-
-        public void DrawCookieSize()
-        {
-            EditorGUILayout.PropertyField(settings.cookieSize, s_Styles.CookieSize);
         }
 
         public override void OnInspectorGUI()
@@ -145,17 +97,17 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
 
             // When we are switching between two light types that don't show the range (directional and area lights)
             // we want the fade group to stay hidden.
-            using (var group = new EditorGUILayout.FadeGroupScope(1.0f - animShowDirOptions.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(1.0f - m_AnimDirOptions.faded))
                 if (group.visible)
-                    settings.DrawRange(animShowAreaOptions.target);
+                    settings.DrawRange(m_AnimAreaOptions.target);
 
             // Spot angle
-            using (var group = new EditorGUILayout.FadeGroupScope(animShowSpotOptions.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(m_AnimSpotOptions.faded))
                 if (group.visible)
                     DrawSpotAngle();
 
             // Area width & height
-            using (var group = new EditorGUILayout.FadeGroupScope(animShowAreaOptions.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(m_AnimAreaOptions.faded))
                 if (group.visible)
                     settings.DrawArea();
 
@@ -163,13 +115,13 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
 
             EditorGUILayout.Space();
 
-            using (var group = new EditorGUILayout.FadeGroupScope(1.0f - animShowAreaOptions.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(1.0f - m_AnimAreaOptions.faded))
                 if (group.visible)
                     settings.DrawLightmapping();
 
             settings.DrawIntensity();
 
-            using (var group = new EditorGUILayout.FadeGroupScope(animShowLightBounceIntensity.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(m_AnimLightBounceIntensity.faded))
                 if (group.visible)
                     settings.DrawBounceIntensity();
 
@@ -197,35 +149,82 @@ namespace UnityEditor.Experimental.Rendering.LightweightPipeline
             serializedObject.ApplyModifiedProperties();
         }
 
+        void SetOptions(AnimBool animBool, bool initialize, bool targetValue)
+        {
+            if (initialize)
+            {
+                animBool.value = targetValue;
+                animBool.valueChanged.AddListener(Repaint);
+            }
+            else
+            {
+                animBool.target = targetValue;
+            }
+        }
+
+        void UpdateShowOptions(bool initialize)
+        {
+            SetOptions(m_AnimSpotOptions, initialize, spotOptionsValue);
+            SetOptions(m_AnimPointOptions, initialize, pointOptionsValue);
+            SetOptions(m_AnimDirOptions, initialize, dirOptionsValue);
+            SetOptions(m_AnimAreaOptions, initialize, areaOptionsValue);
+            SetOptions(m_AnimShadowOptions, initialize, shadowOptionsValue);
+            SetOptions(m_AnimRuntimeOptions, initialize, runtimeOptionsValue);
+            SetOptions(m_AnimShadowAngleOptions, initialize, bakedShadowAngle);
+            SetOptions(m_AnimShadowRadiusOptions, initialize, bakedShadowRadius);
+            SetOptions(m_AnimLightBounceIntensity, initialize, showLightBounceIntensity);
+        }
+
+        void DrawSpotAngle()
+        {
+            EditorGUILayout.Slider(settings.spotAngle, 1f, 179f, s_Styles.SpotAngle);
+        }
+
+        void DrawCookie()
+        {
+            EditorGUILayout.PropertyField(settings.cookieProp, s_Styles.Cookie);
+
+            if (cookieWarningValue)
+            {
+                // warn on spotlights if the cookie is set to repeat
+                EditorGUILayout.HelpBox(s_Styles.CookieWarning.text, MessageType.Warning);
+            }
+        }
+
+        void DrawCookieSize()
+        {
+            EditorGUILayout.PropertyField(settings.cookieSize, s_Styles.CookieSize);
+        }
+
         void ShadowsGUI()
         {
             // Shadows drop-down. Area lights can only be baked and always have shadows.
-            float show = 1.0f - animShowAreaOptions.faded;
+            float show = 1.0f - m_AnimAreaOptions.faded;
             using (new EditorGUILayout.FadeGroupScope(show))
                 settings.DrawShadowsType();
 
             EditorGUI.indentLevel += 1;
-            show *= animShowShadowOptions.faded;
+            show *= m_AnimShadowOptions.faded;
             // Baked Shadow radius
-            using (var group = new EditorGUILayout.FadeGroupScope(show * animBakedShadowRadiusOptions.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(show * m_AnimShadowRadiusOptions.faded))
                 if (group.visible)
                     settings.DrawBakedShadowRadius();
 
             // Baked Shadow angle
-            using (var group = new EditorGUILayout.FadeGroupScope(show * animBakedShadowAngleOptions.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(show * m_AnimShadowAngleOptions.faded))
                 if (group.visible)
                     settings.DrawBakedShadowAngle();
 
             // Runtime shadows - shadow strength, resolution, bias
-            using (var group = new EditorGUILayout.FadeGroupScope(show * animShowRuntimeOptions.faded))
+            using (var group = new EditorGUILayout.FadeGroupScope(show * m_AnimRuntimeOptions.faded))
                 if (group.visible)
                     settings.DrawRuntimeShadow();
             EditorGUI.indentLevel -= 1;
 
-            if (BakingWarningValue)
+            if (bakingWarningValue)
                 EditorGUILayout.HelpBox(s_Styles.BakingWarning.text, MessageType.Warning);
 
-            if (RealtimeShadowsWarningValue)
+            if (realtimeShadowsWarningValue)
                 EditorGUILayout.HelpBox(s_Styles.ShadowsNotSupportedWarning.text, MessageType.Warning);
 
             EditorGUILayout.Space();

@@ -134,7 +134,7 @@ half ComputeFogFactor(float z)
     // factor = (end-z)/(end-start) = z * (-1/(end-start)) + (end/(end-start))
     float fogFactor = saturate(clipZ_01 * unity_FogParams.z + unity_FogParams.w);
     return half(fogFactor);
-#elif defined(FOG_EXP2)
+#elif defined(FOG_EXP) || defined(FOG_EXP2)
     // factor = exp(-(density*z)^2)
     // -density * z computed at vertex
     return half(unity_FogParams.x * clipZ_01);
@@ -145,8 +145,12 @@ half ComputeFogFactor(float z)
 
 void ApplyFogColor(inout half3 color, half3 fogColor, half fogFactor)
 {
-#if defined (FOG_LINEAR) || defined(FOG_EXP2)
-#if defined(FOG_EXP2)
+#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
+#if defined(FOG_EXP)
+    // factor = exp(-density*z)
+    // fogFactor = density*z compute at vertex
+    fogFactor = saturate(exp2(-fogFactor));
+#elif defined(FOG_EXP2)
     // factor = exp(-(density*z)^2)
     // fogFactor = density*z compute at vertex
     fogFactor = saturate(exp2(-fogFactor*fogFactor));
@@ -162,10 +166,14 @@ void ApplyFog(inout half3 color, half fogFactor)
 
 // Stereo-related bits
 #if defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
-    #define SCREENSPACE_TEXTURE TEXTURE2D_ARRAY
+    #define SCREENSPACE_TEXTURE         TEXTURE2D_ARRAY
+    #define SCREENSPACE_TEXTURE_FLOAT   TEXTURE2D_ARRAY_FLOAT
+    #define SCREENSPACE_TEXTURE_HALF    TEXTURE2D_ARRAY_HALF
 #else
-    #define SCREENSPACE_TEXTURE TEXTURE2D
-#endif // defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
+    #define SCREENSPACE_TEXTURE         TEXTURE2D
+    #define SCREENSPACE_TEXTURE_FLOAT   TEXTURE2D_FLOAT
+    #define SCREENSPACE_TEXTURE_HALF    TEXTURE2D_HALF
+#endif
 
 #if defined(UNITY_SINGLE_PASS_STEREO)
 float2 TransformStereoScreenSpaceTex(float2 uv, float w)
