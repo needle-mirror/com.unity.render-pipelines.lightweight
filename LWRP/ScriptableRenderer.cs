@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
 
 namespace UnityEngine.Experimental.Rendering.LightweightPipeline
 {
-    public class LightweightForwardRenderer
+    public class ScriptableRenderer
     {
         // Lights are culled per-object. In platforms that don't use StructuredBuffer
         // the engine will set 4 light indices in the following constant unity_4LightIndices0
@@ -31,10 +30,13 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
         {
             get
             {
-                return SystemInfo.supportsComputeShaders &&
-                       SystemInfo.graphicsDeviceType != GraphicsDeviceType.OpenGLCore &&
-                       !Application.isMobilePlatform &&
-                       Application.platform != RuntimePlatform.WebGLPlayer;
+                // TODO: Graphics Emulation are breaking StructuredBuffers disabling it for now until 
+                // we have a fix for it
+                return false;
+                // return SystemInfo.supportsComputeShaders &&
+                //        SystemInfo.graphicsDeviceType != GraphicsDeviceType.OpenGLCore &&
+                //        !Application.isMobilePlatform &&
+                //        Application.platform != RuntimePlatform.WebGLPlayer;
             }
         }
 
@@ -51,10 +53,8 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
 
         readonly Material[] m_Materials;
         
-        public LightweightForwardRenderer(LightweightPipelineAsset pipelineAsset)
+        public ScriptableRenderer(LightweightPipelineAsset pipelineAsset)
         {
-            this.pipelineAsset = pipelineAsset;
-            
             m_Materials = new[]
             {
                 CoreUtils.CreateEngineMaterial("Hidden/InternalErrorShader"),
@@ -66,8 +66,6 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
 
             postProcessRenderContext = new PostProcessRenderContext();
         }
-
-        public LightweightPipelineAsset pipelineAsset { get; private set; }
 
         public void Dispose()
         {
@@ -98,22 +96,20 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             desc.colorFormat = cameraData.isHdrEnabled ? RenderTextureFormat.DefaultHDR :
                 RenderTextureFormat.Default;
             desc.enableRandomWrite = false;
+            desc.sRGB = true;
             desc.width = (int)((float)desc.width * renderScale * scaler);
             desc.height = (int)((float)desc.height * renderScale * scaler);
             return desc;
         }
 
-
-
         public void Execute(ref ScriptableRenderContext context, ref CullResults cullResults, ref RenderingData renderingData)
         {
             for (int i = 0; i < m_ActiveRenderPassQueue.Count; ++i)
-                m_ActiveRenderPassQueue[i].Execute(ref context, ref cullResults, ref renderingData);
+                m_ActiveRenderPassQueue[i].Execute(this, ref context, ref cullResults, ref renderingData);
 
             DisposePasses(ref context);
         }
 
-        
         public Material GetMaterial(MaterialHandles handle)
         {
             int handleID = (int)handle;
@@ -138,14 +134,14 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             m_ActiveRenderPassQueue.Add(pass);
         }
 
-        public static bool RequiresIntermediateColorTexture(ref CameraData cameraData, RenderTextureDescriptor baseDescriptor, bool requiresCameraDepth)
+        public static bool RequiresIntermediateColorTexture(ref CameraData cameraData, RenderTextureDescriptor baseDescriptor)
         {
             if (cameraData.isOffscreenRender)
                 return false;
 
             bool isScaledRender = !Mathf.Approximately(cameraData.renderScale, 1.0f);
             bool isTargetTexture2DArray = baseDescriptor.dimension == TextureDimension.Tex2DArray;
-            return requiresCameraDepth || cameraData.isSceneViewCamera || isScaledRender || cameraData.isHdrEnabled ||
+            return cameraData.isSceneViewCamera || isScaledRender || cameraData.isHdrEnabled ||
                 cameraData.postProcessEnabled || cameraData.requiresOpaqueTexture || isTargetTexture2DArray || !cameraData.isDefaultViewport;
         }
 

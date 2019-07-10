@@ -10,11 +10,8 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
         private RenderTargetHandle source { get; set; }
         private RenderTargetHandle destination { get; set; }
         
-        private Material samplingMaterial { get; set; }
-
-        public CopyColorPass(Material samplingMaterial)
+        public CopyColorPass()
         {
-            this.samplingMaterial = samplingMaterial;
             m_SampleOffsetShaderHandle = Shader.PropertyToID("_SampleOffset");
         }
 
@@ -24,7 +21,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             this.destination = destination;
         }
 
-        public override void Execute(ref ScriptableRenderContext context,
+        public override void Execute(ScriptableRenderer renderer, ref ScriptableRenderContext context,
             ref CullResults cullResults,
             ref RenderingData renderingData)
         {
@@ -33,7 +30,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             Downsampling downsampling = renderingData.cameraData.opaqueTextureDownsampling;
             float opaqueScaler = m_OpaqueScalerValues[(int)downsampling];
 
-            RenderTextureDescriptor opaqueDesc = LightweightForwardRenderer.CreateRTDesc(ref renderingData.cameraData, opaqueScaler);
+            RenderTextureDescriptor opaqueDesc = ScriptableRenderer.CreateRTDesc(ref renderingData.cameraData, opaqueScaler);
             RenderTargetIdentifier colorRT = source.Identifier();
             RenderTargetIdentifier opaqueColorRT = destination.Identifier();
 
@@ -47,6 +44,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
                     cmd.Blit(colorRT, opaqueColorRT);
                     break;
                 case Downsampling._4xBox:
+                    Material samplingMaterial = renderer.GetMaterial(MaterialHandles.Sampling);
                     samplingMaterial.SetFloat(m_SampleOffsetShaderHandle, 2);
                     cmd.Blit(colorRT, opaqueColorRT, samplingMaterial, 0);
                     break;
