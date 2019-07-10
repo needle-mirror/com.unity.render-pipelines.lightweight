@@ -4,38 +4,31 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.0.5-preview]
-- PS4 compiler error
-- Fixed VR multiview rendering by forcing MSAA to be off. There's a current issue in engine that breaks MSAA and Texture2DArray.
-
-## [2.0.4-preview]
+## [3.0.0-preview]
 ### Added
 - Added camera additional data component to control shadows, depth and color texture.
 - pipeline now uses XRSEttings.eyeTextureResolutionScale as renderScale when in XR.
+- New pass architecture. Allows for custom passes to be written and then used on a per camera basis in LWRP
 
 ### Changed
 - Shadow rendering has been optimized for the Mali Utgard architecture by removing indexing and avoiding divisions for orthographic projections. This reduces the frame time by 25% on the Overdraw benchmark.
 - Removed 7x7 tent filtering when using cascades.
-- Updated lightweight asset inspector to show capabilities and general settings groups. Removed custom shader stripping.
 - Screenspace shadow resolve is now only done when rendering shadow cascades.
-
-## [2.0.3-preview]
+- Updated the UI for the Lighweight pipeline asset.
+- Update assembly definitions to output assemblies that match Unity naming convention (Unity.*).
 
 ### Fixed
+- Post-processing now works with VR on PC.
+- PS4 compiler error
+- Fixed VR multiview rendering by forcing MSAA to be off. There's a current issue in engine that breaks MSAA and Texture2DArray.
+- Fixed UnityPerDraw CB layout
 - GLCore compute buffer compiler error
-
-## [2.0.2-preview]
-
-### Fixed
 - Occlusion strength not being applied on LW standard shaders
 - CopyDepth pass is being called even when a depth from prepass is available
 - GLES2 shader compiler error in IntegrationTests
 - Can't set RenderScale and ShadowDistance by script
-
-## [2.0.1-preview]
-
-### Fixed
 - VR Single Pass Instancing shadows
+- Fixed compilation errors on Nintendo Switch (limited XRSetting support).
 
 ## [2.0.0-preview]
 
