@@ -5,6 +5,14 @@
 #include "CoreRP/ShaderLibrary/Packing.hlsl"
 #include "Input.hlsl"
 
+#if !defined(SHADER_HINT_NICE_QUALITY)
+#ifdef SHADER_API_MOBILE
+#define SHADER_HINT_NICE_QUALITY 0
+#else
+#define SHADER_HINT_NICE_QUALITY 1
+#endif
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 #ifdef _NORMALMAP
     #define OUTPUT_NORMAL(IN, OUT) OutputTangentToWorld(IN.tangent, IN.normal, OUT.tangent, OUT.binormal, OUT.normal)
@@ -111,5 +119,30 @@ void ApplyFog(inout half3 color, half fogFactor)
 {
     ApplyFogColor(color, unity_FogColor.rgb, fogFactor);
 }
+
+// Stereo-related bits
+#if defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
+    #define SCREENSPACE_TEXTURE TEXTURE2D_ARRAY
+#else
+    #define SCREENSPACE_TEXTURE TEXTURE2D
+#endif // defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
+
+#if defined(UNITY_SINGLE_PASS_STEREO)
+float2 TransformStereoScreenSpaceTex(float2 uv, float w)
+{
+    // TODO: RVS support can be added here, if LWRP decides to support it
+    float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
+    return uv.xy * scaleOffset.xy + scaleOffset.zw * w;
+}
+
+float2 UnityStereoTransformScreenSpaceTex(float2 uv)
+{
+    return TransformStereoScreenSpaceTex(saturate(uv), 1.0);
+}
+#else
+
+#define UnityStereoTransformScreenSpaceTex(uv) uv
+
+#endif // defined(UNITY_SINGLE_PASS_STEREO)
 
 #endif

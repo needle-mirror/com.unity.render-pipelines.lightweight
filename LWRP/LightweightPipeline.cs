@@ -136,6 +136,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
         private MixedLightingSetup m_MixedLightingSetup;
 
         private const int kDepthStencilBufferBits = 32;
+        private const int kShadowBufferBits = 16;
         private Vector4[] m_DirectionalShadowSplitDistances = new Vector4[kMaxCascades];
         private Vector4 m_DirectionalShadowSplitRadii;
 
@@ -286,6 +287,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
         public override void Render(ScriptableRenderContext context, Camera[] cameras)
         {
             base.Render(context, cameras);
+            RenderPipeline.BeginFrameRendering(cameras);
 
             GraphicsSettings.lightsUseLinearIntensity = true;
             SetupPerFrameShaderConstants();
@@ -294,10 +296,17 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             Array.Sort(cameras, m_CameraComparer);
             foreach (Camera camera in cameras)
             {
+                RenderPipeline.BeginCameraRendering(camera);
+
                 bool sceneViewCamera = camera.cameraType == CameraType.SceneView;
-                bool stereoEnabled = XRSettings.isDeviceActive && !sceneViewCamera;
+                bool stereoEnabled = XRSettings.isDeviceActive && !sceneViewCamera && (camera.stereoTargetEye == StereoTargetEyeMask.Both);
                 m_CurrCamera = camera;
                 m_IsOffscreenCamera = m_CurrCamera.targetTexture != null && m_CurrCamera.cameraType != CameraType.SceneView;
+
+                var cmd = CommandBufferPool.Get("");
+                cmd.BeginSample("LightweightPipeline.Render");
+                context.ExecuteCommandBuffer(cmd);
+                cmd.Clear();
 
                 ScriptableCullingParameters cullingParameters;
                 if (!CullResults.GetCullingParameters(m_CurrCamera, stereoEnabled, out cullingParameters))
@@ -336,11 +345,11 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
 
                 if (LightweightUtils.HasFlag(frameRenderingConfiguration, FrameRenderingConfiguration.DepthPrePass))
                 {
-                    DepthPass(ref context);
+                    DepthPass(ref context, frameRenderingConfiguration);
 
                     // Only screen space shadowmap mode is supported.
                     if (shadows)
-                        ShadowCollectPass(visibleLights, ref context, ref lightData);
+                        ShadowCollectPass(visibleLights, ref context, ref lightData, frameRenderingConfiguration);
                 }
 
                 if (!shadows)
@@ -354,7 +363,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
                 ForwardPass(visibleLights, frameRenderingConfiguration, ref context, ref lightData, stereoEnabled);
 
 
-                var cmd = CommandBufferPool.Get("After Camera Render");
+                cmd.name = "After Camera Render";
 #if UNITY_EDITOR
                 if (sceneViewCamera)
                     CopyTexture(cmd, CameraRenderTargetID.depth, BuiltinRenderTextureType.CameraTarget, m_CopyDepthMaterial, true);
@@ -365,6 +374,9 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
                 cmd.ReleaseTemporaryRT(CameraRenderTargetID.depth);
                 cmd.ReleaseTemporaryRT(CameraRenderTargetID.color);
                 cmd.ReleaseTemporaryRT(CameraRenderTargetID.copyColor);
+
+                cmd.EndSample("LightweightPipeline.Render");
+
                 context.ExecuteCommandBuffer(cmd);
                 CommandBufferPool.Release(cmd);
 
@@ -408,21 +420,45 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             return false;
         }
 
-        private void ShadowCollectPass(List<VisibleLight> visibleLights, ref ScriptableRenderContext context, ref LightData lightData)
+        private void ShadowCollectPass(List<VisibleLight> visibleLights, ref ScriptableRenderContext context, ref LightData lightData, FrameRenderingConfiguration frameRenderingConfiguration)
         {
             CommandBuffer cmd = CommandBufferPool.Get("Collect Shadows");
 
             SetupShadowReceiverConstants(cmd, visibleLights[lightData.mainLightIndex]);
             SetShadowCollectPassKeywords(cmd, visibleLights[lightData.mainLightIndex], ref lightData);
 
-            cmd.GetTemporaryRT(m_ScreenSpaceShadowMapRTID, m_CurrCamera.pixelWidth, m_CurrCamera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.R8);
-            cmd.Blit(null, m_ScreenSpaceShadowMapRT, m_ScreenSpaceShadowsMaterial);
+
+            // TODO: Support RenderScale for the SSSM target.  Should probably move allocation elsewhere, or at
+            // least propogate RenderTextureDescriptor generation
+            if (LightweightUtils.HasFlag(frameRenderingConfiguration, FrameRenderingConfiguration.Stereo))
+            {
+                var desc = XRSettings.eyeTextureDesc;
+                desc.depthBufferBits = 0;
+                desc.colorFormat = RenderTextureFormat.R8;
+                cmd.GetTemporaryRT(m_ScreenSpaceShadowMapRTID, desc, FilterMode.Bilinear);
+            }
+            else
+            {
+                cmd.GetTemporaryRT(m_ScreenSpaceShadowMapRTID, m_CurrCamera.pixelWidth, m_CurrCamera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.R8);
+            }
+
+            // Note: The source isn't actually 'used', but there's an engine peculiarity (bug) that 
+            // doesn't like null sources when trying to determine a stereo-ized blit.  So for proper
+            // stereo functionality, we use the screen-space shadow map as the source (until we have
+            // a better solution).
+            // An alternative would be DrawProcedural, but that would require further changes in the shader.
+            cmd.Blit(m_ScreenSpaceShadowMapRT, m_ScreenSpaceShadowMapRT, m_ScreenSpaceShadowsMaterial);
+
+            StartStereoRendering(ref context, frameRenderingConfiguration);
 
             context.ExecuteCommandBuffer(cmd);
+
+            StopStereoRendering(ref context, frameRenderingConfiguration);
+
             CommandBufferPool.Release(cmd);
         }
 
-        private void DepthPass(ref ScriptableRenderContext context)
+        private void DepthPass(ref ScriptableRenderContext context, FrameRenderingConfiguration frameRenderingConfiguration)
         {
             CommandBuffer cmd = CommandBufferPool.Get("Depth Prepass");
             SetRenderTarget(cmd, m_DepthRT, ClearFlag.Depth);
@@ -437,7 +473,11 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
                 renderQueueRange = RenderQueueRange.opaque
             };
 
+            StartStereoRendering(ref context, frameRenderingConfiguration);
+
             context.DrawRenderers(m_CullResults.visibleRenderers, ref opaqueDrawSettings, opaqueFilterSettings);
+
+            StopStereoRendering(ref context, frameRenderingConfiguration);
         }
 
         private void ForwardPass(List<VisibleLight> visibleLights, FrameRenderingConfiguration frameRenderingConfiguration, ref ScriptableRenderContext context, ref LightData lightData, bool stereoEnabled)
@@ -685,33 +725,41 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             m_CurrCameraColorRT = BuiltinRenderTextureType.CameraTarget;
 
             if (LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.IntermediateTexture))
-            {
-                if (LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.Stereo))
-                    SetupIntermediateResourcesStereo(cmd, msaaSamples);
-                else
-                    SetupIntermediateResourcesSingle(cmd, renderingConfig, msaaSamples);
-            }
+                SetupIntermediateRenderTextures(cmd, renderingConfig, msaaSamples);
 
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
         }
 
-        private void SetupIntermediateResourcesSingle(CommandBuffer cmd, FrameRenderingConfiguration renderingConfig, int msaaSamples)
+        private void SetupIntermediateRenderTextures(CommandBuffer cmd, FrameRenderingConfiguration renderingConfig, int msaaSamples)
         {
+            RenderTextureDescriptor baseDesc;
+            if (LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.Stereo))
+                baseDesc = XRSettings.eyeTextureDesc;
+            else
+                baseDesc = new RenderTextureDescriptor(m_CurrCamera.pixelWidth, m_CurrCamera.pixelHeight);
+
             float renderScale = (m_CurrCamera.cameraType == CameraType.Game) ? m_Asset.RenderScale : 1.0f;
-            int rtWidth = (int)((float)m_CurrCamera.pixelWidth * renderScale);
-            int rtHeight = (int)((float)m_CurrCamera.pixelHeight * renderScale);
+            baseDesc.width = (int)((float)baseDesc.width * renderScale);
+            baseDesc.height = (int)((float)baseDesc.height * renderScale);
+
+            // TODO: Might be worth caching baseDesc for allocation of other targets (Screen-space Shadow Map?)
 
             if (m_RequireDepthTexture)
             {
-                RenderTextureDescriptor depthRTDesc = new RenderTextureDescriptor(rtWidth, rtHeight, RenderTextureFormat.Depth, kDepthStencilBufferBits);
+                var depthRTDesc = baseDesc;
+                depthRTDesc.colorFormat = RenderTextureFormat.Depth;
+                depthRTDesc.depthBufferBits = kDepthStencilBufferBits;
+
                 cmd.GetTemporaryRT(CameraRenderTargetID.depth, depthRTDesc, FilterMode.Bilinear);
 
                 if (LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.DepthCopy))
                     cmd.GetTemporaryRT(CameraRenderTargetID.depthCopy, depthRTDesc, FilterMode.Bilinear);
             }
 
-            RenderTextureDescriptor colorRTDesc = new RenderTextureDescriptor(rtWidth, rtHeight, m_ColorFormat, kDepthStencilBufferBits);
+            var colorRTDesc = baseDesc;
+            colorRTDesc.colorFormat = m_ColorFormat;
+            colorRTDesc.depthBufferBits = kDepthStencilBufferBits; // TODO: does the color RT always need depth?
             colorRTDesc.sRGB = true;
             colorRTDesc.msaaSamples = msaaSamples;
             colorRTDesc.enableRandomWrite = false;
@@ -727,16 +775,6 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             // color RT to blit the effect.
             if (m_RequireCopyColor)
                 cmd.GetTemporaryRT(CameraRenderTargetID.copyColor, colorRTDesc, FilterMode.Point);
-        }
-
-        private void SetupIntermediateResourcesStereo(CommandBuffer cmd, int msaaSamples)
-        {
-            RenderTextureDescriptor rtDesc = new RenderTextureDescriptor();
-            rtDesc = XRSettings.eyeTextureDesc;
-            rtDesc.colorFormat = m_ColorFormat;
-            rtDesc.msaaSamples = msaaSamples;
-
-            cmd.GetTemporaryRT(CameraRenderTargetID.color, rtDesc, FilterMode.Bilinear);
         }
 
         private void SetupShaderConstants(List<VisibleLight> visibleLights, ref ScriptableRenderContext context, ref LightData lightData)
@@ -1157,8 +1195,9 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
 
             var cmd = CommandBufferPool.Get("Prepare Shadowmap");
             cmd.GetTemporaryRT(m_ShadowMapRTID, m_ShadowSettings.shadowAtlasWidth,
-                m_ShadowSettings.shadowAtlasHeight, kDepthStencilBufferBits, FilterMode.Bilinear, m_ShadowSettings.renderTextureFormat);
-            SetRenderTarget(cmd, m_ShadowMapRT, ClearFlag.Depth);
+                m_ShadowSettings.shadowAtlasHeight, kShadowBufferBits, FilterMode.Bilinear, m_ShadowSettings.renderTextureFormat);
+            // LightweightPipeline.SetRenderTarget is meant to be used with camera targets, not shadowmaps
+            CoreUtils.SetRenderTarget(cmd, m_ShadowMapRT, ClearFlag.Depth, CoreUtils.ConvertSRGBToActiveColorSpace(m_CurrCamera.backgroundColor));
 
             if (shadowLight.lightType == LightType.Spot)
             {
@@ -1289,12 +1328,11 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             RenderTargetIdentifier colorRT = BuiltinRenderTextureType.CameraTarget;
             RenderTargetIdentifier depthRT = BuiltinRenderTextureType.None;
 
-            if (LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.Stereo))
-                context.StartMultiEye(m_CurrCamera);
+            StartStereoRendering(ref context, renderingConfig);
 
             CommandBuffer cmd = CommandBufferPool.Get("SetCameraRenderTarget");
-            bool intermeaditeTexture = LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.IntermediateTexture);
-            if (intermeaditeTexture)
+            bool intermediateTexture = LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.IntermediateTexture);
+            if (intermediateTexture)
             {
                 if (!m_IsOffscreenCamera)
                     colorRT = m_CurrCameraColorRT;
@@ -1323,7 +1361,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
 
             // If rendering to an intermediate RT we resolve viewport on blit due to offset not being supported
             // while rendering to a RT.
-            if (!intermeaditeTexture && !LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.DefaultViewport))
+            if (!intermediateTexture && !LightweightUtils.HasFlag(renderingConfig, FrameRenderingConfiguration.DefaultViewport))
                 cmd.SetViewport(m_CurrCamera.pixelRect);
 
             context.ExecuteCommandBuffer(cmd);
@@ -1445,6 +1483,18 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
                 cmd.CopyTexture(sourceRT, destRT);
             else
                 cmd.Blit(sourceRT, destRT, copyMaterial);
+        }
+
+        private void StartStereoRendering(ref ScriptableRenderContext context, FrameRenderingConfiguration renderingConfiguration)
+        {
+            if (LightweightUtils.HasFlag(renderingConfiguration, FrameRenderingConfiguration.Stereo))
+                context.StartMultiEye(m_CurrCamera);
+        }
+
+        private void StopStereoRendering(ref ScriptableRenderContext context, FrameRenderingConfiguration renderingConfiguration)
+        {
+            if (LightweightUtils.HasFlag(renderingConfiguration, FrameRenderingConfiguration.Stereo))
+                context.StopMultiEye(m_CurrCamera);
         }
     }
 }
