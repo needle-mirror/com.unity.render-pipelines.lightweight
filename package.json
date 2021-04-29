@@ -1,12 +1,12 @@
 {
   "name": "com.unity.render-pipelines.lightweight",
   "description": "The Lightweight Render Pipeline (LWRP) is a prebuilt Scriptable Render Pipeline, made by Unity. The technology offers graphics that are scalable to mobile platforms, and you can also use it for higher-end consoles and PCs. You’re able to achieve quick rendering at a high quality without needing compute shader technology. LWRP uses simplified, physically based Lighting and Materials. The LWRP uses single-pass forward rendering. Use this pipeline to get optimized real-time performance on several platforms.",
-  "version": "10.5.1",
+  "version": "10.6.0",
   "unity": "2020.3",
-  "unityRelease": "4f1",
+  "unityRelease": "13f1",
   "displayName": "Lightweight RP",
   "dependencies": {
-    "com.unity.render-pipelines.universal": "10.5.1",
+    "com.unity.render-pipelines.universal": "10.6.0",
     "com.unity.postprocessing": "2.1.7"
   },
   "keywords": [
@@ -18,11 +18,11 @@
     "pipeline"
   ],
   "upmCi": {
-    "footprint": "c9d5cfb54493a1dcfa16555703530368a5cb2f67"
+    "footprint": "81525ff58344a0f081ffe4520279270f6e2e18ac"
   },
   "repository": {
     "url": "https://github.com/Unity-Technologies/Graphics.git",
     "type": "git",
-    "revision": "73f32e8fcc2d0cbf3b73a16a5e30eb5cede41576"
+    "revision": "d645e6b498e293626bcb30ec32b652b9f584e9b5"
   }
 }
